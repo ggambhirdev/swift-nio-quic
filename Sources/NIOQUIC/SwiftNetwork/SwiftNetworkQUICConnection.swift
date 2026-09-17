@@ -73,6 +73,37 @@ final class SwiftNetworkQUICConnection<Consumer: QUICStreamConsumer & ~Copyable>
     private let swiftNetworkParameters: SwiftNetwork.Parameters
     private let eventLoop: any EventLoop
 
+    /// Returns a copy of the connection's transport metrics.
+    ///
+    /// Must be called on the connection's event loop.
+    ///
+    /// - Returns: A snapshot while connected, or `nil` before establishment or once termination begins.
+    internal func currentMetrics() -> InternalQUICConnectionMetrics? {
+        self.eventLoop.preconditionInEventLoop()
+        guard self.connectionStateMachine.hasEstablishedConnection,
+            !self.connectionStateMachine.isTerminating
+        else {
+            return nil
+        }
+
+        // Enter through the protocol reference to preserve SwiftNetwork event bookkeeping.
+        guard
+            case .dataTransferSnapshot(let snapshot) = self.swiftNetworkQUICConnection.reference.getMetrics(
+                self.outputHandler.reference,
+                requestedNetworkMetric: .dataTransferSnapshot
+            )
+        else {
+            return nil
+        }
+        return InternalQUICConnectionMetrics(
+            currentRTT: .nanoseconds(snapshot.transportCurrentRTT.nanoseconds),
+            minimumRTT: .nanoseconds(snapshot.transportMinimumRTT.nanoseconds),
+            smoothedRTT: .nanoseconds(snapshot.transportSmoothedRTT.nanoseconds),
+            rttVariance: .nanoseconds(snapshot.transportRTTVariance.nanoseconds),
+            congestionWindowInBytes: snapshot.transportCongestionWindow
+        )
+    }
+
     // All active source connection IDs.
     private var activeSCIDs: [QUICConnectionID]
     // All retired connection IDs.
