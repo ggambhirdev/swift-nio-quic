@@ -100,7 +100,40 @@ final class SwiftNetworkQUICConnection<Consumer: QUICStreamConsumer & ~Copyable>
             minimumRTT: .nanoseconds(snapshot.transportMinimumRTT.nanoseconds),
             smoothedRTT: .nanoseconds(snapshot.transportSmoothedRTT.nanoseconds),
             rttVariance: .nanoseconds(snapshot.transportRTTVariance.nanoseconds),
-            congestionWindowInBytes: snapshot.transportCongestionWindow
+            congestionWindowInBytes: snapshot.transportCongestionWindow,
+            ecnCapablePacketsSent: snapshot.sentTransportECNCapablePacketCount,
+            ecnCapablePacketsAcknowledged: snapshot.sentTransportECNCapableAckedPacketCount,
+            ecnMarkedPackets: snapshot.sentTransportECNCapableMarkedPacketCount,
+            ecnCapablePacketsLost: snapshot.sentTransportECNCapableLostPacketCount
+        )
+    }
+
+    /// Returns the timing values captured when the QUIC connection was established.
+    ///
+    /// Must be called on the connection's event loop.
+    ///
+    /// - Returns: Establishment metrics while connected, or `nil` if unavailable.
+    internal func establishmentMetrics() -> InternalQUICEstablishmentMetrics? {
+        self.eventLoop.preconditionInEventLoop()
+        guard self.connectionStateMachine.hasEstablishedConnection,
+            !self.connectionStateMachine.isTerminating
+        else {
+            return nil
+        }
+        guard
+            case .protocolEstablishmentReports(let reports) = self.swiftNetworkQUICConnection.reference.getMetrics(
+                self.outputHandler.reference,
+                requestedNetworkMetric: .protocolEstablishmentReports
+            ),
+            let report = reports.first(where: {
+                $0.protocolIdentifier == SwiftNetwork.QUICConnectionProtocol.identifier
+            })
+        else {
+            return nil
+        }
+        return InternalQUICEstablishmentMetrics(
+            handshakeDuration: .nanoseconds(report.handshakeMilliseconds.nanoseconds),
+            handshakeRTT: .nanoseconds(report.handshakeRTTMilliseconds.nanoseconds)
         )
     }
 

@@ -499,7 +499,7 @@ final class QUICProtocolStackTests: XCTestCase {
             logger: Logger(label: "metrics"),
             eventLoop: eventLoop
         )
-        defer {  
+        defer {
             _ = connection.close(sendApplicationClose: true, errorCode: 0, reason: "test complete")
             connection.dropChannelReferences()
         }
@@ -513,7 +513,9 @@ final class QUICProtocolStackTests: XCTestCase {
         )
         // A real SwiftNetwork connection, before any handshake packet is delivered.
         XCTAssertNil(connection.currentMetrics())
+        XCTAssertNil(connection.establishmentMetrics())
         XCTAssertNil(try channel.currentMetrics().wait())
+        XCTAssertNil(try channel.establishmentMetrics().wait())
     }
 
     func testCurrentMetricsAfterTrafficAndClose() async throws {
@@ -558,6 +560,8 @@ final class QUICProtocolStackTests: XCTestCase {
                 }
             }
             do {
+                var previousMetrics: InternalQUICConnectionMetrics?
+                var firstEstablishment: InternalQUICEstablishmentMetrics?
                 for exchange in 0..<2 {
                     let stream = try await clientConnection.createBidirectionalStream { initializer in
                         initializer.channel.eventLoop.makeCompletedFuture {
@@ -603,6 +607,39 @@ final class QUICProtocolStackTests: XCTestCase {
                         connection.currentMetrics()
                     }.get()
                     XCTAssertNotNil(onLoop)
+                    if let previousMetrics {
+                        XCTAssertGreaterThanOrEqual(
+                            metrics.ecnCapablePacketsSent,
+                            previousMetrics.ecnCapablePacketsSent
+                        )
+                        XCTAssertGreaterThanOrEqual(
+                            metrics.ecnCapablePacketsAcknowledged,
+                            previousMetrics.ecnCapablePacketsAcknowledged
+                        )
+                        XCTAssertGreaterThanOrEqual(metrics.ecnMarkedPackets, previousMetrics.ecnMarkedPackets)
+                        XCTAssertGreaterThanOrEqual(
+                            metrics.ecnCapablePacketsLost,
+                            previousMetrics.ecnCapablePacketsLost
+                        )
+                    }
+                    previousMetrics = metrics
+
+                    let establishmentResult = try await connection.establishmentMetrics().get()
+                    let establishment = try XCTUnwrap(establishmentResult)
+                    XCTAssertGreaterThanOrEqual(establishment.handshakeDuration, .zero)
+                    XCTAssertGreaterThanOrEqual(establishment.handshakeRTT, .zero)
+                    if let firstEstablishment {
+                        XCTAssertEqual(establishment, firstEstablishment)
+                    } else {
+                        firstEstablishment = establishment
+                    }
+                    let establishmentOnLoop = try await connection.eventLoop.flatSubmit {
+                        connection.establishmentMetrics()
+                    }.get()
+                    XCTAssertEqual(establishmentOnLoop, establishment)
+                    print(
+                        "QUIC establishment: duration \(establishment.handshakeDuration), RTT \(establishment.handshakeRTT); ECN sent/acked/CE/lost: \(metrics.ecnCapablePacketsSent)/\(metrics.ecnCapablePacketsAcknowledged)/\(metrics.ecnMarkedPackets)/\(metrics.ecnCapablePacketsLost)"
+                    )
                     print(
                         "QUIC metrics exchange \(exchange): smoothed RTT \(metrics.smoothedRTT), cwnd \(metrics.congestionWindowInBytes) bytes"
                     )
@@ -621,6 +658,8 @@ final class QUICProtocolStackTests: XCTestCase {
         try await connection.close().get()
         let afterClose = try await connection.currentMetrics().get()
         XCTAssertNil(afterClose)
+        let establishmentAfterClose = try await connection.establishmentMetrics().get()
+        XCTAssertNil(establishmentAfterClose)
     }
 
     func testMultipleConnections() async throws {

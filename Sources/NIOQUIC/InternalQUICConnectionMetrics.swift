@@ -12,7 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-/// A snapshot of the current QUIC path's transport state.
+/// A snapshot of the current QUIC path's RTT and congestion window, and connection ECN counters.
 ///
 /// RTT values preserve the underlying estimates, including initial values before
 /// measurement. In particular, the unmeasured minimum is `UInt32.max` seconds.
@@ -25,4 +25,13 @@ struct InternalQUICConnectionMetrics: Sendable, Equatable {
     let smoothedRTT: Duration
     let rttVariance: Duration
     let congestionWindowInBytes: UInt64
+    /// ECN-capable packets sent by this connection.
+    let ecnCapablePacketsSent: UInt64
+    /// Sent ECN-capable packets acknowledged by the peer.
+    let ecnCapablePacketsAcknowledged: UInt64
+    /// The underlying transport's accumulated validated CE feedback count.
+    /// This can count a marked packet more than once across acknowledgments.
+    let ecnMarkedPackets: UInt64
+    /// Sent ECN-capable packets declared lost.
+    let ecnCapablePacketsLost: UInt64
 }

@@ -236,6 +236,28 @@ extension QUICConnectionChannel: Channel where Consumer: ~Copyable {
         }
     }
 
+    /// Retrieves the connection's establishment timing on this channel's event loop.
+    ///
+    /// - Returns: A future containing the timing values, or `nil` before establishment,
+    ///   during termination, or when using a test connection without a metrics source.
+    internal func establishmentMetrics() -> EventLoopFuture<InternalQUICEstablishmentMetrics?> {
+        if self.eventLoop.inEventLoop {
+            return self.eventLoop.makeCompletedFuture { self.establishmentMetricsOnEventLoop() }
+        } else {
+            return self.eventLoop.submit { self.establishmentMetricsOnEventLoop() }
+        }
+    }
+
+    private func establishmentMetricsOnEventLoop() -> InternalQUICEstablishmentMetrics? {
+        self.eventLoop.preconditionInEventLoop()
+        switch self._connection {
+        case .live(let connection):
+            return connection.establishmentMetrics()
+        case .test:
+            return nil
+        }
+    }
+
     func setOption<Option: ChannelOption>(
         _ option: Option,
         value: Option.Value
