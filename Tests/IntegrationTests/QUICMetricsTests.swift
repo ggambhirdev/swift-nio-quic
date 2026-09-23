@@ -199,6 +199,11 @@ final class QUICMetricsTests: XCTestCase {
                 XCTAssertEqual(received, payload)
                 let result = try await self.bounded(connection.currentMetrics())
                 let snapshot = try XCTUnwrap(result)
+                XCTAssertGreaterThan(snapshot.receivedPackets, 0)
+                XCTAssertGreaterThan(snapshot.sentPacketAttempts, 0)
+                XCTAssertGreaterThanOrEqual(snapshot.receivedPackets, previous.receivedPackets)
+                XCTAssertGreaterThanOrEqual(snapshot.sentPacketAttempts, previous.sentPacketAttempts)
+                XCTAssertGreaterThanOrEqual(snapshot.lostPackets, previous.lostPackets)
                 XCTAssertGreaterThan(snapshot.congestionWindowInBytes, 0)
                 XCTAssertGreaterThanOrEqual(snapshot.currentRTT, .zero)
                 XCTAssertLessThan(snapshot.minimumRTT, .seconds(Int64(UInt32.max)))
@@ -226,6 +231,8 @@ final class QUICMetricsTests: XCTestCase {
             _ = try await self.exchange(secondStreams, connection: second, label: "second")
             let secondEstablishment = try await self.bounded(second.establishmentMetrics())
             let firstAfter = try await self.exchange(firstStreams, connection: first, label: "first-more", chunks: 3)
+            XCTAssertGreaterThan(firstAfter.receivedPackets, firstSaved.receivedPackets)
+            XCTAssertGreaterThan(firstAfter.sentPacketAttempts, firstSaved.sentPacketAttempts)
             if firstSaved.ecnCapablePacketsSent > 0 {
                 XCTAssertGreaterThan(firstAfter.ecnCapablePacketsSent, firstSaved.ecnCapablePacketsSent)
             }
