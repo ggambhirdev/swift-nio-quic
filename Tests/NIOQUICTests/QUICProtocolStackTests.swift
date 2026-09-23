@@ -594,7 +594,7 @@ final class QUICProtocolStackTests: XCTestCase {
                     XCTAssertFalse(connection.eventLoop.inEventLoop)
                     let result = try await connection.currentMetrics().get()
                     let metrics = try XCTUnwrap(result)
-                    XCTAssertGreaterThan(metrics.receivedPackets, 0)
+                    XCTAssertGreaterThan(metrics.receivedDatagrams, 0)
                     XCTAssertGreaterThan(metrics.sentPacketAttempts, 0)
                     XCTAssertGreaterThan(metrics.congestionWindowInBytes, 0)
                     XCTAssertGreaterThanOrEqual(metrics.currentRTT, .zero)
@@ -610,7 +610,7 @@ final class QUICProtocolStackTests: XCTestCase {
                     }.get()
                     XCTAssertNotNil(onLoop)
                     if let previousMetrics {
-                        XCTAssertGreaterThan(metrics.receivedPackets, previousMetrics.receivedPackets)
+                        XCTAssertGreaterThan(metrics.receivedDatagrams, previousMetrics.receivedDatagrams)
                         XCTAssertGreaterThan(metrics.sentPacketAttempts, previousMetrics.sentPacketAttempts)
                         XCTAssertGreaterThanOrEqual(metrics.lostPackets, previousMetrics.lostPackets)
                         XCTAssertGreaterThanOrEqual(

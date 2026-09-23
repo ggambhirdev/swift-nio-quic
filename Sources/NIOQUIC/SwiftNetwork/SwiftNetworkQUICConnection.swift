@@ -101,7 +101,7 @@ final class SwiftNetworkQUICConnection<Consumer: QUICStreamConsumer & ~Copyable>
             smoothedRTT: .nanoseconds(snapshot.transportSmoothedRTT.nanoseconds),
             rttVariance: .nanoseconds(snapshot.transportRTTVariance.nanoseconds),
             congestionWindowInBytes: snapshot.transportCongestionWindow,
-            receivedPackets: snapshot.receivedTransportPacketCount,
+            receivedDatagrams: snapshot.receivedTransportDatagramCount,
             sentPacketAttempts: snapshot.sentTransportPacketAttemptCount,
             lostPackets: snapshot.lostTransportPacketCount,
             ecnCapablePacketsSent: snapshot.sentTransportECNCapablePacketCount,

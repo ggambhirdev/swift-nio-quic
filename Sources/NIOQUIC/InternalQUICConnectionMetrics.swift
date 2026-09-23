@@ -25,8 +25,9 @@ struct InternalQUICConnectionMetrics: Sendable, Equatable {
     let smoothedRTT: Duration
     let rttVariance: Duration
     let congestionWindowInBytes: UInt64
-    /// QUIC packets reaching the receive accounting point, before all frame processing completes.
-    let receivedPackets: UInt64
+    /// Datagram frames processed by the connection, including frames rejected during parsing.
+    /// A datagram containing multiple QUIC packets is counted once.
+    let receivedDatagrams: UInt64
     /// QUIC packet send attempts counted before sealing and transport submission.
     let sentPacketAttempts: UInt64
     /// QUIC packets declared lost, including declarations later found to be spurious.
